@@ -44,6 +44,14 @@ double pearson_red(
 // Indices
 double mean_ind(double* p_array);
 double stddev_ind(double* p_array, double p_mean);
+double pearson_ind(
+    double* p_array_a, 
+    double* p_array_b, 
+    double p_mean_a, 
+    double p_mean_b, 
+    double p_std_dev_a, 
+    double p_std_dev_b
+);
 
 void set_threads(int p_threads);
 

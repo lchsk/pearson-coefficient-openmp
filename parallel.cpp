@@ -120,6 +120,36 @@ Parallel::stddev_ind(double* p_array, double p_mean)
     return sqrt(nominator / data.conf.input_length);
 }
 
+double 
+Parallel::pearson_ind(
+    double* p_array_a, 
+    double* p_array_b, 
+    double p_mean_a, 
+    double p_mean_b, 
+    double p_std_dev_a, 
+    double p_std_dev_b
+)
+{
+    double sum = 0;
+
+    #pragma omp parallel shared(sum)
+    {
+        int i = omp_get_thread_num() * (data.conf.input_length / omp_get_num_threads());
+        int per = data.conf.input_length / omp_get_num_threads();
+
+        int c;
+        double local = 0;
+
+        for (i, c = 0; c < per; c++, i++)
+            local += ((p_array_a[i] - p_mean_a) * (p_array_b[i] - p_mean_b));
+        
+        sum += local;
+    }
+
+    return (sum / data.conf.input_length) / (p_std_dev_a * p_std_dev_b);
+}
+
+
 
 double 
 Parallel::mean_for(double* p_array)
@@ -191,7 +221,7 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     }
     else if (p_type == ParallelType::INDICES)
     {
-        printf("\tUsing pragma parallel with calculation array indices...\n");
+        printf("\tUsing pragma parallel with calculated array indices...\n");
     }
 
     clock_t start, end;
@@ -215,7 +245,6 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     else if (p_type == ParallelType::INDICES)
     {
         mean_a = mean_ind(data.a);
-        //#pragma omp barrier
         mean_b = mean_ind(data.b);
     }
     
@@ -251,9 +280,13 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     {
         pearson = pearson_for(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
     }
-    if (p_type == ParallelType::REDUCTION)
+    else if (p_type == ParallelType::REDUCTION)
     {
         pearson = pearson_red(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
+    }
+    else if (p_type == ParallelType::INDICES)
+    {
+        pearson = pearson_ind(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
     }
 
     end = clock();
