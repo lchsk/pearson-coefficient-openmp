@@ -4,29 +4,19 @@
 #include "main.h"
 
 enum class ParallelType{
-    PARALLEL_FOR,
-    REDUCTION,
-    INDICES,
-    PTHREADS
+    // OpenMP
+    PARALLEL_FOR,   // parallel for with critical section
+    REDUCTION,      // parallel for with reduction
+    INDICES,        // parallel for with calculating indices of the array
+    
+    // pthreads
+    PTHREADS,
+
+    // C++11 multithreading
+    CPP11
 };
 
-// class PData
-// {
-// public:
-//     PData(double* p_array, int p_index, int p_length)
-//     : array(p_array), index(p_index), length(p_length)
-//     {
-//         global = 0;
-//     };
-
-//     PData(){};
-
-//     double* array;
-//     int index;
-//     int length;
-//     double global;
-// };
-
+// structure for exchanging data in pthreads version
 typedef struct t_pdata
 {
     double* array;
@@ -38,6 +28,7 @@ typedef struct t_pdata
     double mean_b;
 } t_pdata;
 
+// pthreads worker functions
 void* mean_ph_worker(void* d);
 void* stddev_ph_worker(void* d);
 void* pearson_ph_worker(void* d);
@@ -96,17 +87,20 @@ double dispatcher_ph(
     double p_stddev_b,
     double* p_array_b
 );
-// double stddev_ph(double* p_array, double p_mean);
-// double pearson_ph(
-//     double* p_array_a, 
-//     double* p_array_b, 
-//     double p_mean_a, 
-//     double p_mean_b, 
-//     double p_std_dev_a, 
-//     double p_std_dev_b
-// );
-// pthreads workers
 
+// C++11 Multithreading
+double mean_cpp11(double* p_array, int p_index, int p_length, double* global);
+double stddev_cpp11(double* p_array, int p_index, int p_length, double p_mean, double* global);
+double pearson_cpp11(double* p_array_a, double* p_array_b, int p_index, int p_length, double p_mean_a, double p_mean_b, double* global);
+double dispatcher_cpp11(
+    double* p_array, 
+    int what, 
+    double p_mean_a, 
+    double p_mean_b,
+    double p_stddev_a,
+    double p_stddev_b,
+    double* p_array_b
+);
 
 
 void set_threads(int p_threads);
@@ -117,11 +111,5 @@ double run_parallel_pearson(ParallelType p_type, int p_threads);
 int threads;
 
 };
-
-
-
-
-
-
 
 #endif

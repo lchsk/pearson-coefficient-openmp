@@ -32,7 +32,6 @@ Serial::compute_std_dev(double* p_array, double p_mean)
     int i = 0;
     for (i; i < data.conf.input_length; ++i)
     {
-        //nominator += pow((p_array[i] - p_mean), 2.0);
         nominator += (p_array[i] - p_mean) * (p_array[i] - p_mean);
     }
 

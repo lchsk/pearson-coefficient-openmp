@@ -1,6 +1,6 @@
 OBJS = main.o serial.o parallel.o
 CC = g++
-DEBUG = -g
+DEBUG = 
 CFLAGS = $(DEBUG) -std=c++11
 LIBS = -lgomp -fopenmp -lm -pthread
 

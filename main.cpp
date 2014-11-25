@@ -18,7 +18,7 @@ main (int argc, char* argv[])
 {
     
     Config conf;
-    conf.input_length = 10000000;
+    conf.input_length = 1000000;
     
     Data d(conf);
 
@@ -46,6 +46,10 @@ main (int argc, char* argv[])
         {
             type = ParallelType::PTHREADS;
         }
+        else if (strcmp(argv[1], "c11") == 0)
+        {
+            type = ParallelType::CPP11;
+        }
 
         threads = atoi(argv[2]);
     }
@@ -57,7 +61,14 @@ main (int argc, char* argv[])
     }
 
     s.run_serial_pearson();
-    p.run_parallel_pearson(type, threads);
+
+    if (PRINT_REPORT_RESULTS)
+    {
+        for (int i = 0; i < REPORT_ITERATIONS; ++i)
+            p.run_parallel_pearson(type, threads);
+    }
+    else
+        p.run_parallel_pearson(type, threads);
 
     return 0;
 }
