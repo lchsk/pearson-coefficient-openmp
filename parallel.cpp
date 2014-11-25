@@ -5,6 +5,8 @@
 #include <math.h>
 #include <omp.h>
 #include "main.h"
+#include <pthread.h>
+
 
 Parallel::Parallel(Data& p_data) : data(p_data)
 {
@@ -151,6 +153,84 @@ Parallel::pearson_ind(
 
 
 
+// ------------------------------
+void* 
+mean_ph_worker(void* d)
+{
+    t_pdata* p = (t_pdata*) d;
+    double local_sum = 0;
+
+    for (int i = 0, index = p->index; i < p->length; i++, index++)
+    {
+        local_sum += p->array[index];
+    }
+
+    p->global = local_sum;
+}
+double 
+Parallel::mean_ph(double* p_array)
+{
+    int ret;
+    //pthread_t thr[threads - 1]; // array of threads
+    //t_pdata pdat[threads]; // arrays of thread data, last thread is master
+    pthread_t* thr = new pthread_t[threads - 1];
+    t_pdata* pdat = new t_pdata[threads];
+    int per_thread = data.conf.input_length / threads;
+
+    for (int i = 0; i < threads - 1; ++i)
+    {
+        //PData p(p_array, i * per_thread, per_thread);
+        pdat[i].array = p_array;
+        pdat[i].index = i * per_thread;
+        pdat[i].length = per_thread;
+
+        ret = pthread_create(&thr[i], NULL, mean_ph_worker, (void*) &pdat[i]);
+        if (ret)
+        {
+            fprintf(stderr,"Error - pthread_create() return code: %d\n", ret);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // make master thread busy
+    pdat[threads-1].index = pdat[threads-2].index + per_thread;
+    pdat[threads-1].length = per_thread;
+    pdat[threads-1].array = p_array;
+    mean_ph_worker((void*) &pdat[threads-1]);
+
+    double global = 0;
+
+    for (int i = 0; i < threads - 1; ++i)
+    {
+        pthread_join(thr[i], NULL);
+        global += pdat[i].global;
+    }
+
+    global += pdat[threads-1].global;
+
+    delete[] pdat;
+    delete[] thr;
+
+    return global / data.conf.input_length;
+}
+
+
+
+
+// ------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
 double 
 Parallel::mean_for(double* p_array)
 {
@@ -223,14 +303,21 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     {
         printf("\tUsing pragma parallel with calculated array indices...\n");
     }
+    else if (p_type == ParallelType::PTHREADS)
+    {
+        printf("\tUsing p_threads...\n");
+    }
 
     clock_t start, end;
+    double s, e;
     double diff;
     double mean_a, mean_b;
     double stddev_a, stddev_b;
     double pearson;
 
-    start = clock();
+    
+
+    s = omp_get_wtime();
 
     if (p_type == ParallelType::PARALLEL_FOR)
     {
@@ -247,9 +334,14 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
         mean_a = mean_ind(data.a);
         mean_b = mean_ind(data.b);
     }
+    else if (p_type == ParallelType::PTHREADS)
+    {
+        mean_a = mean_ph(data.a);
+        mean_b = mean_ph(data.b);
+    }
     
-    end = clock();
-    stats.mean_time = stats.compute_diff(start, end);
+    e = omp_get_wtime();
+    stats.mean_time = stats.compute_diff(s, e);
     printf("\tParallel mean computed in %*.*f ms\n", RESULT_LENGTH, FLOAT_PRECISION, stats.mean_time);
 
     #pragma omp barrier
@@ -269,6 +361,12 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
         stddev_a = stddev_ind(data.a, mean_a);
         stddev_b = stddev_ind(data.b, mean_b);
     }
+    else if (p_type == ParallelType::PTHREADS)
+    {
+        //stddev_a = stddev_ind(data.a, mean_a);
+        //stddev_b = stddev_ind(data.b, mean_b);
+    }
+
     end = clock();
 
     stats.stddev_time = stats.compute_diff(start, end);
@@ -287,6 +385,10 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     else if (p_type == ParallelType::INDICES)
     {
         pearson = pearson_ind(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
+    }
+    else if (p_type == ParallelType::PTHREADS)
+    {
+        //pearson = pearson_ind(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
     }
 
     end = clock();

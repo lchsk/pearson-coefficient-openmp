@@ -6,8 +6,35 @@
 enum class ParallelType{
     PARALLEL_FOR,
     REDUCTION,
-    INDICES
+    INDICES,
+    PTHREADS
 };
+
+// class PData
+// {
+// public:
+//     PData(double* p_array, int p_index, int p_length)
+//     : array(p_array), index(p_index), length(p_length)
+//     {
+//         global = 0;
+//     };
+
+//     PData(){};
+
+//     double* array;
+//     int index;
+//     int length;
+//     double global;
+// };
+
+typedef struct t_pdata
+{
+    double* array;
+    int length;
+    int index;
+    double global;
+} t_pdata;
+
 
 class Parallel
 {
@@ -53,6 +80,18 @@ double pearson_ind(
     double p_std_dev_b
 );
 
+// Indices with pthreads
+double mean_ph(double* p_array);
+double stddev_ph(double* p_array, double p_mean);
+double pearson_ph(
+    double* p_array_a, 
+    double* p_array_b, 
+    double p_mean_a, 
+    double p_mean_b, 
+    double p_std_dev_a, 
+    double p_std_dev_b
+);
+
 void set_threads(int p_threads);
 
 // to start calculations
@@ -63,6 +102,7 @@ int threads;
 };
 
 
+void* mean_ph_worker(void* d);
 
 
 

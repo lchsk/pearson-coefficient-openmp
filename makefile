@@ -2,7 +2,7 @@ OBJS = main.o serial.o parallel.o
 CC = g++
 DEBUG = -g
 CFLAGS = $(DEBUG) -std=c++11
-LIBS = -lgomp -fopenmp -lm
+LIBS = -lgomp -fopenmp -lm -pthread
 
 all: pearson
 

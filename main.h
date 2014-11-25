@@ -21,6 +21,7 @@ class Stats
         double pearson_time;
         double overall_time;
 
+        double compute_diff(double time1, double time2);
         double compute_diff(clock_t time1, clock_t time2);
         void compute_overall_time();
 };

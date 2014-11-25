@@ -25,7 +25,7 @@ main (int argc, char* argv[])
     Parallel p(d);
 
     s.run_serial_pearson();
-    p.run_parallel_pearson(ParallelType::INDICES, 2);
+    p.run_parallel_pearson(ParallelType::PTHREADS, 10);
 
     // s_time = omp_get_wtime();
     // double meanX = p.parallel_mean(input_data.a);
@@ -59,6 +59,12 @@ double
 Stats::compute_diff(clock_t time1, clock_t time2)
 {
     return ((double)time2 - (double)time1) * 1000.0 / CLOCKS_PER_SEC;
+}
+
+double
+Stats::compute_diff(double time1, double time2)
+{
+    return (time2 - time1) * 1000;
 }
 
 void 
