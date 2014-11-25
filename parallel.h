@@ -30,11 +30,17 @@ enum class ParallelType{
 typedef struct t_pdata
 {
     double* array;
+    double* array_b;
     int length;
     int index;
     double global;
+    double mean_a;
+    double mean_b;
 } t_pdata;
 
+void* mean_ph_worker(void* d);
+void* stddev_ph_worker(void* d);
+void* pearson_ph_worker(void* d);
 
 class Parallel
 {
@@ -81,16 +87,27 @@ double pearson_ind(
 );
 
 // Indices with pthreads
-double mean_ph(double* p_array);
-double stddev_ph(double* p_array, double p_mean);
-double pearson_ph(
-    double* p_array_a, 
-    double* p_array_b, 
+double dispatcher_ph(
+    double* p_array, 
+    int what, 
     double p_mean_a, 
-    double p_mean_b, 
-    double p_std_dev_a, 
-    double p_std_dev_b
+    double p_mean_b,
+    double p_stddev_a,
+    double p_stddev_b,
+    double* p_array_b
 );
+// double stddev_ph(double* p_array, double p_mean);
+// double pearson_ph(
+//     double* p_array_a, 
+//     double* p_array_b, 
+//     double p_mean_a, 
+//     double p_mean_b, 
+//     double p_std_dev_a, 
+//     double p_std_dev_b
+// );
+// pthreads workers
+
+
 
 void set_threads(int p_threads);
 
@@ -102,7 +119,7 @@ int threads;
 };
 
 
-void* mean_ph_worker(void* d);
+
 
 
 

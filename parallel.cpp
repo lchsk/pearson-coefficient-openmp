@@ -167,8 +167,45 @@ mean_ph_worker(void* d)
 
     p->global = local_sum;
 }
+
+void* 
+stddev_ph_worker(void* d)
+{
+    t_pdata* p = (t_pdata*) d;
+    double local_sum = 0;
+
+    for (int i = 0, index = p->index; i < p->length; i++, index++)
+    {
+        local_sum += ((p->array[index] - p->mean_a) * (p->array[index] - p->mean_a));
+    }
+
+    p->global = local_sum;
+}
+
+void* 
+pearson_ph_worker(void* d)
+{
+    t_pdata* p = (t_pdata*) d;
+    double local_sum = 0;
+
+    for (int i = 0, index = p->index; i < p->length; i++, index++)
+    {
+        local_sum += ((p->array[index] - p->mean_a) * (p->array_b[index] - p->mean_b));
+    }
+
+    p->global = local_sum;
+}
+
 double 
-Parallel::mean_ph(double* p_array)
+Parallel::dispatcher_ph(
+    double* p_array, 
+    int p_what, 
+    double p_mean_a,
+    double p_mean_b,
+    double p_stddev_a,
+    double p_stddev_b,
+    double* p_array_b
+)
 {
     int ret;
     //pthread_t thr[threads - 1]; // array of threads
@@ -181,10 +218,25 @@ Parallel::mean_ph(double* p_array)
     {
         //PData p(p_array, i * per_thread, per_thread);
         pdat[i].array = p_array;
+        pdat[i].array_b = p_array_b;
         pdat[i].index = i * per_thread;
         pdat[i].length = per_thread;
+        pdat[i].mean_a = p_mean_a;
+        pdat[i].mean_b = p_mean_b;
 
-        ret = pthread_create(&thr[i], NULL, mean_ph_worker, (void*) &pdat[i]);
+        switch(p_what)
+        {
+            case 0:
+                ret = pthread_create(&thr[i], NULL, mean_ph_worker, (void*) &pdat[i]);
+                break;
+            case 1: 
+                ret = pthread_create(&thr[i], NULL, stddev_ph_worker, (void*) &pdat[i]);
+                break;
+            case 2: 
+                ret = pthread_create(&thr[i], NULL, pearson_ph_worker, (void*) &pdat[i]);
+                break;
+        }
+        
         if (ret)
         {
             fprintf(stderr,"Error - pthread_create() return code: %d\n", ret);
@@ -192,11 +244,26 @@ Parallel::mean_ph(double* p_array)
         }
     }
 
-    // make master thread busy
+    // make master thread busy as well
     pdat[threads-1].index = pdat[threads-2].index + per_thread;
     pdat[threads-1].length = per_thread;
     pdat[threads-1].array = p_array;
-    mean_ph_worker((void*) &pdat[threads-1]);
+    pdat[threads-1].array_b = p_array_b;
+    pdat[threads-1].mean_a = p_mean_a;
+    pdat[threads-1].mean_b = p_mean_b;
+
+    switch(p_what)
+    {
+        case 0:
+            mean_ph_worker((void*) &pdat[threads-1]);
+            break;
+        case 1: 
+            stddev_ph_worker((void*) &pdat[threads-1]);
+            break;
+        case 2: 
+            pearson_ph_worker((void*) &pdat[threads-1]);
+            break;
+    }
 
     double global = 0;
 
@@ -211,7 +278,15 @@ Parallel::mean_ph(double* p_array)
     delete[] pdat;
     delete[] thr;
 
-    return global / data.conf.input_length;
+    switch(p_what)
+    {
+        case 0:
+            return global / data.conf.input_length;
+        case 1: 
+            return sqrt(global / data.conf.input_length);
+        case 2:
+            return (global / data.conf.input_length) / (p_stddev_a * p_stddev_b);
+    }
 }
 
 
@@ -315,10 +390,7 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     double stddev_a, stddev_b;
     double pearson;
 
-    
-
     s = omp_get_wtime();
-
     if (p_type == ParallelType::PARALLEL_FOR)
     {
         mean_a = mean_for(data.a);
@@ -336,8 +408,8 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     }
     else if (p_type == ParallelType::PTHREADS)
     {
-        mean_a = mean_ph(data.a);
-        mean_b = mean_ph(data.b);
+        mean_a = dispatcher_ph(data.a, 0, 0, 0, 0, 0, NULL);
+        mean_b = dispatcher_ph(data.b, 0, 0, 0, 0, 0, NULL);
     }
     
     e = omp_get_wtime();
@@ -345,7 +417,8 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     printf("\tParallel mean computed in %*.*f ms\n", RESULT_LENGTH, FLOAT_PRECISION, stats.mean_time);
 
     #pragma omp barrier
-    start = clock();
+    //start = clock();
+    s = omp_get_wtime();
     if (p_type == ParallelType::PARALLEL_FOR)
     {
         stddev_a = stddev_for(data.a, mean_a);
@@ -363,17 +436,19 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     }
     else if (p_type == ParallelType::PTHREADS)
     {
-        //stddev_a = stddev_ind(data.a, mean_a);
-        //stddev_b = stddev_ind(data.b, mean_b);
+        stddev_a = dispatcher_ph(data.a, 1, mean_a, 0, 0, 0, NULL);
+        stddev_b = dispatcher_ph(data.b, 1, mean_b, 0, 0, 0, NULL);
     }
+    e = omp_get_wtime();
+    //end = clock();
 
-    end = clock();
-
-    stats.stddev_time = stats.compute_diff(start, end);
+    stats.stddev_time = stats.compute_diff(s, e);
+    //stats.stddev_time = stats.compute_diff(start, end);
     printf("\tParallel stddev computed in %*.*f ms\n", RESULT_LENGTH, FLOAT_PRECISION, stats.stddev_time);
 
     #pragma omp barrier
-    start = clock();
+    //start = clock();
+    s = omp_get_wtime();
     if (p_type == ParallelType::PARALLEL_FOR)
     {
         pearson = pearson_for(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
@@ -388,11 +463,12 @@ Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
     }
     else if (p_type == ParallelType::PTHREADS)
     {
-        //pearson = pearson_ind(data.a, data.b, mean_a, mean_b, stddev_a, stddev_b);
+        pearson = dispatcher_ph(data.a, 2, mean_a, mean_b, stddev_a, stddev_b, data.b);
     }
-
-    end = clock();
-    stats.pearson_time = stats.compute_diff(start, end);
+    e = omp_get_wtime();
+    //end = clock();
+    //stats.pearson_time = stats.compute_diff(start, end);
+    stats.pearson_time = stats.compute_diff(s, e);
     printf("\tParallel Pearson coefficient computed in %*.*f ms\n", RESULT_LENGTH, FLOAT_PRECISION, stats.pearson_time);
 
     stats.compute_overall_time();

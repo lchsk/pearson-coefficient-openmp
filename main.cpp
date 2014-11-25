@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <ctime>
 #include <string>
+#include <string.h>
 #include <omp.h>
 #include "main.h"
 #include "definitions.h"
@@ -17,35 +18,46 @@ main (int argc, char* argv[])
 {
     
     Config conf;
-    conf.input_length = 1000000;
+    conf.input_length = 10000000;
     
     Data d(conf);
 
     Serial s(d);
     Parallel p(d);
 
+    ParallelType type;
+    int threads = 0;
+
+    if (argc > 2)
+    {
+        if (strcmp(argv[1], "for") == 0)
+        {
+            type = ParallelType::PARALLEL_FOR;
+        }
+        else if (strcmp(argv[1], "red") == 0)
+        {
+            type = ParallelType::REDUCTION;
+        }
+        else if (strcmp(argv[1], "ind") == 0)
+        {
+            type = ParallelType::INDICES;
+        }
+        else if (strcmp(argv[1], "pth") == 0)
+        {
+            type = ParallelType::PTHREADS;
+        }
+
+        threads = atoi(argv[2]);
+    }
+    else
+    {
+        printf("\n\tRUNNING WITH DEFAULT SETTINGS:\n\t2 threads (parallel for/reduction)\n\n");
+        threads = 2;
+        type = ParallelType::REDUCTION;
+    }
+
     s.run_serial_pearson();
-    p.run_parallel_pearson(ParallelType::PTHREADS, 10);
-
-    // s_time = omp_get_wtime();
-    // double meanX = p.parallel_mean(input_data.a);
-    // double meanY = p.parallel_mean(input_data.b);
-    // e_time = omp_get_wtime();
-
-    // printf("Mean X: %*.*f\n", RESULT_LENGTH, FLOAT_PRECISION, meanX);
-    // printf("Mean Y: %*.*f\n", RESULT_LENGTH, FLOAT_PRECISION, meanY);
-
-    // printf("Duration = %lf ms\n", (e_time - s_time) * 1000);
-
-    // double stddevX = p.parallel_stddev(input_data.a, meanX);
-    // double stddevY = p.parallel_stddev(input_data.b, meanY);
-
-    // printf("Std dev X: %*.*f\n", RESULT_LENGTH, FLOAT_PRECISION, stddevX);
-    // printf("Std dev Y: %*.*f\n", RESULT_LENGTH, FLOAT_PRECISION, stddevY);
-
-    // double pearson = p.parallel_pearson(input_data.a, input_data.b, meanX, meanY, stddevX, stddevY);
-    
-    // printf("Pearson coefficient: %*.*f\n", RESULT_LENGTH, FLOAT_PRECISION, pearson);
+    p.run_parallel_pearson(type, threads);
 
     return 0;
 }
