@@ -52,12 +52,32 @@ main (int argc, char* argv[])
         }
 
         threads = atoi(argv[2]);
+
+        if (threads < 2 || threads % 2 != 0)
+        {
+            printf("\n\tInvalid parameter. Number of threads must an even number, as odd number of threads may produce invalid results. Program will exit now.\n\n");
+            exit(1);
+        }
     }
     else
     {
-        printf("\n\tRUNNING WITH DEFAULT SETTINGS:\n\t2 threads (parallel for/reduction)\n\n");
         threads = 2;
         type = ParallelType::REDUCTION;
+
+        printf("\n\tProgram can be run using the following commands:");
+        printf("\n\t./pearson for N");
+        printf("\n\t\tUse of parallel for with critical section");
+        printf("\n\t./pearson red N");
+        printf("\n\t\tUse of parallel for with reduction clause");
+        printf("\n\t./pearson ind N");
+        printf("\n\t\tUse of parallel for with indices known to each thread");
+        printf("\n\t./pearson pth N");
+        printf("\n\t\tUse of Pthreads");
+        printf("\n\t./pearson c11 N");
+        printf("\n\t\tUse of C++11 multithreading capabilities");
+        printf("\n\n\t(N denotes number of threads)\n\n");
+
+        printf("\n\tRUNNING WITH DEFAULT SETTINGS NOW...:\n\t2 threads (parallel for/reduction version)\n\n");        
     }
 
     s.run_serial_pearson();
@@ -75,6 +95,7 @@ main (int argc, char* argv[])
 
 Config::Config()
 {
+    // default
     input_length = 100;
 }
 

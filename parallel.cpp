@@ -451,6 +451,7 @@ Parallel::pearson_for(
 
     return (sum / data.conf.input_length) / (p_std_dev_a * p_std_dev_b);
 }
+// --------------------------
 
 double 
 Parallel::run_parallel_pearson(ParallelType p_type, int p_threads)
